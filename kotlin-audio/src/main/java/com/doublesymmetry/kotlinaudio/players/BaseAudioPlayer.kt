@@ -73,6 +73,10 @@ abstract class BaseAudioPlayer internal constructor(
     open val currentItem: AudioItem?
         get() = exoPlayer.currentMediaItem?.localConfiguration?.tag as AudioItem?
 
+    private val _updatePlayback = MutableSharedFlow<Int>()
+    val updatePlayback: SharedFlow<Int>
+        get() = _updatePlayback
+
     var playbackError: PlaybackError? = null
     var playerState: AudioPlayerState = AudioPlayerState.IDLE
         private set(value) {
@@ -543,6 +547,17 @@ abstract class BaseAudioPlayer internal constructor(
         }
 
         playerEventHolder.updateOnAudioFocusChanged(isPaused, isPermanent)
+    }
+
+    fun updatePlaybackPosition() {
+        coroutineScope.launch {
+            while (true) {
+                val currentPosition = exoPlayer.currentPosition
+                // Update your UI with currentPosition here.
+                delay(1000) // Update every 1 second
+                _updatePlayback.emit(0)
+            }
+        }
     }
 
     companion object {
