@@ -45,8 +45,9 @@ import com.doublesymmetry.kotlinaudio.models.*
 import com.doublesymmetry.kotlinaudio.notification.NotificationManager
 import com.doublesymmetry.kotlinaudio.players.components.PlayerCache
 import com.doublesymmetry.kotlinaudio.utils.isUriLocal
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import timber.log.Timber
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -329,6 +330,7 @@ abstract class BaseAudioPlayer internal constructor(
         if (currentItem != null) {
             exoPlayer.prepare()
         }
+        updatePlaybackPosition()
     }
 
     fun prepare() {
@@ -338,6 +340,7 @@ abstract class BaseAudioPlayer internal constructor(
     }
 
     fun pause() {
+        coroutineScope?.cancel()
         exoPlayer.pause()
     }
 
@@ -350,6 +353,7 @@ abstract class BaseAudioPlayer internal constructor(
         playerState = AudioPlayerState.STOPPED
         exoPlayer.playWhenReady = false
         exoPlayer.stop()
+        coroutineScope?.cancel()
     }
 
     open fun clear() {
@@ -375,6 +379,7 @@ abstract class BaseAudioPlayer internal constructor(
         cache?.release()
         cache = null
         mediaSession.release()
+        coroutineScope?.cancel()
     }
 
     open fun seek(duration: Long, unit: TimeUnit) {
@@ -388,7 +393,8 @@ abstract class BaseAudioPlayer internal constructor(
     }
 
     private fun getMediaItemFromAudioItem(audioItem: AudioItem): MediaItem {
-        return MediaItem.Builder().setUri(audioItem.audioUrl).setTag(AudioItemHolder(audioItem)).build()
+        return MediaItem.Builder().setUri(audioItem.audioUrl).setTag(AudioItemHolder(audioItem))
+            .build()
     }
 
     protected fun getMediaSourceFromAudioItem(audioItem: AudioItem): MediaSource {
@@ -538,10 +544,13 @@ abstract class BaseAudioPlayer internal constructor(
         playerEventHolder.updateOnAudioFocusChanged(isPaused, isPermanent)
     }
 
-    fun updatePlaybackPosition() {
-        coroutineScope.launch {
+    private var coroutineScope: CoroutineScope? = null
+    private fun updatePlaybackPosition() {
+        coroutineScope?.cancel()
+        coroutineScope = CoroutineScope(Dispatchers.Default)
+
+        coroutineScope?.launch {
             while (true) {
-                val currentPosition = exoPlayer.currentPosition
                 // Update your UI with currentPosition here.
                 delay(1000) // Update every 1 second
                 _updatePlayback.emit(0)
@@ -646,8 +655,14 @@ abstract class BaseAudioPlayer internal constructor(
          * Called when the value returned from Player.getPlayWhenReady() changes.
          */
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-            val pausedBecauseReachedEnd = reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM
-            playerEventHolder.updatePlayWhenReadyChange(PlayWhenReadyChangeData(playWhenReady, pausedBecauseReachedEnd))
+            val pausedBecauseReachedEnd =
+                reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM
+            playerEventHolder.updatePlayWhenReadyChange(
+                PlayWhenReadyChangeData(
+                    playWhenReady,
+                    pausedBecauseReachedEnd
+                )
+            )
         }
 
         /**
