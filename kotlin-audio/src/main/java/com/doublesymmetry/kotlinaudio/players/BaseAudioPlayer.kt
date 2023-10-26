@@ -45,7 +45,12 @@ import com.doublesymmetry.kotlinaudio.models.*
 import com.doublesymmetry.kotlinaudio.notification.NotificationManager
 import com.doublesymmetry.kotlinaudio.players.components.PlayerCache
 import com.doublesymmetry.kotlinaudio.utils.isUriLocal
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.util.*
@@ -57,6 +62,7 @@ abstract class BaseAudioPlayer internal constructor(
     private val bufferConfig: BufferConfig?,
     private val cacheConfig: CacheConfig?
 ) : AudioManager.OnAudioFocusChangeListener {
+    val coroutineScope = CoroutineScope(Dispatchers.Main)
     protected val exoPlayer: ExoPlayer
     private val forwardingPlayer: ForwardingPlayer
     protected val mediaSession: MediaSession
@@ -388,7 +394,8 @@ abstract class BaseAudioPlayer internal constructor(
     }
 
     private fun getMediaItemFromAudioItem(audioItem: AudioItem): MediaItem {
-        return MediaItem.Builder().setUri(audioItem.audioUrl).setTag(AudioItemHolder(audioItem)).build()
+        return MediaItem.Builder().setUri(audioItem.audioUrl).setTag(AudioItemHolder(audioItem))
+            .build()
     }
 
     protected fun getMediaSourceFromAudioItem(audioItem: AudioItem): MediaSource {
@@ -646,8 +653,14 @@ abstract class BaseAudioPlayer internal constructor(
          * Called when the value returned from Player.getPlayWhenReady() changes.
          */
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-            val pausedBecauseReachedEnd = reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM
-            playerEventHolder.updatePlayWhenReadyChange(PlayWhenReadyChangeData(playWhenReady, pausedBecauseReachedEnd))
+            val pausedBecauseReachedEnd =
+                reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM
+            playerEventHolder.updatePlayWhenReadyChange(
+                PlayWhenReadyChangeData(
+                    playWhenReady,
+                    pausedBecauseReachedEnd
+                )
+            )
         }
 
         /**
