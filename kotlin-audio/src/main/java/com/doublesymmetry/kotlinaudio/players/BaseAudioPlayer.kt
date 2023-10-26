@@ -311,9 +311,8 @@ abstract class BaseAudioPlayer internal constructor(
      * @param item The [AudioItem] to replace the current one.
      */
     open fun load(item: AudioItem) {
-        getMediaSourceFromAudioItem(item) {
-            exoPlayer.addMediaSource(it)
-        }
+        val mediaSource = getMediaSourceFromAudioItem(item)
+        exoPlayer.addMediaSource(mediaSource)
         exoPlayer.prepare()
     }
 
@@ -389,59 +388,49 @@ abstract class BaseAudioPlayer internal constructor(
     }
 
     private fun getMediaItemFromAudioItem(audioItem: AudioItem): MediaItem {
-        return MediaItem.Builder().setUri(audioItem.audioUrl).setTag(AudioItemHolder(audioItem))
-            .build()
+        return MediaItem.Builder().setUri(audioItem.audioUrl).setTag(AudioItemHolder(audioItem)).build()
     }
 
-    protected fun getMediaSourceFromAudioItem(
-        audioItem: AudioItem,
-        handler: (MediaSource) -> Unit
-    ) {
-        audioItem.getSourceUrl { it ->
-            val uri = Uri.parse(it)
-            val mediaItem = MediaItem.Builder()
-                .setUri(it)
-                .setTag(AudioItemHolder(audioItem))
-                .build()
+    protected fun getMediaSourceFromAudioItem(audioItem: AudioItem): MediaSource {
+        val factory: DataSource.Factory
+        val uri = Uri.parse(audioItem.audioUrl)
+        val mediaItem = getMediaItemFromAudioItem(audioItem)
 
-            val userAgent =
-                if (audioItem.options == null || audioItem.options!!.userAgent.isNullOrBlank()) {
-                    Util.getUserAgent(context, APPLICATION_NAME)
-                } else {
-                    audioItem.options!!.userAgent
-                }
-
-            val factory: DataSource.Factory = when {
-                audioItem.options?.resourceId != null -> {
-                    val raw = RawResourceDataSource(context)
-                    raw.open(DataSpec(uri))
-                    DataSource.Factory { raw }
-                }
-                isUriLocal(uri) -> {
-                    DefaultDataSourceFactory(context, userAgent)
-                }
-                else -> {
-                    val tempFactory = DefaultHttpDataSource.Factory().apply {
-                        setUserAgent(userAgent)
-                        setAllowCrossProtocolRedirects(true)
-
-                        audioItem.options?.headers?.let {
-                            setDefaultRequestProperties(it.toMap())
-                        }
-                    }
-
-                    enableCaching(tempFactory)
-                }
+        val userAgent =
+            if (audioItem.options == null || audioItem.options!!.userAgent.isNullOrBlank()) {
+                Util.getUserAgent(context, APPLICATION_NAME)
+            } else {
+                audioItem.options!!.userAgent
             }
 
-            handler(
-                when (audioItem.type) {
-                    MediaType.DASH -> createDashSource(mediaItem, factory)
-                    MediaType.HLS -> createHlsSource(mediaItem, factory)
-                    MediaType.SMOOTH_STREAMING -> createSsSource(mediaItem, factory)
-                    else -> createProgressiveSource(mediaItem, factory)
+        factory = when {
+            audioItem.options?.resourceId != null -> {
+                val raw = RawResourceDataSource(context)
+                raw.open(DataSpec(uri))
+                DataSource.Factory { raw }
+            }
+            isUriLocal(uri) -> {
+                DefaultDataSourceFactory(context, userAgent)
+            }
+            else -> {
+                val tempFactory = DefaultHttpDataSource.Factory().apply {
+                    setUserAgent(userAgent)
+                    setAllowCrossProtocolRedirects(true)
+
+                    audioItem.options?.headers?.let {
+                        setDefaultRequestProperties(it.toMap())
+                    }
                 }
-            )
+
+                enableCaching(tempFactory)
+            }
+        }
+
+        return when (audioItem.type) {
+            MediaType.DASH -> createDashSource(mediaItem, factory)
+            MediaType.HLS -> createHlsSource(mediaItem, factory)
+            MediaType.SMOOTH_STREAMING -> createSsSource(mediaItem, factory)
+            else -> createProgressiveSource(mediaItem, factory)
         }
     }
 
@@ -657,14 +646,8 @@ abstract class BaseAudioPlayer internal constructor(
          * Called when the value returned from Player.getPlayWhenReady() changes.
          */
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-            val pausedBecauseReachedEnd =
-                reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM
-            playerEventHolder.updatePlayWhenReadyChange(
-                PlayWhenReadyChangeData(
-                    playWhenReady,
-                    pausedBecauseReachedEnd
-                )
-            )
+            val pausedBecauseReachedEnd = reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM
+            playerEventHolder.updatePlayWhenReadyChange(PlayWhenReadyChangeData(playWhenReady, pausedBecauseReachedEnd))
         }
 
         /**

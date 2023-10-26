@@ -11,7 +11,6 @@ interface AudioItem {
     val artwork: String?
     val duration: Long
     val options: AudioItemOptions?
-    fun getSourceUrl(handler: (String) -> Unit)
 }
 
 data class AudioItemOptions(
@@ -56,11 +55,7 @@ data class DefaultAudioItem(
     override val artwork: String? = null,
     override val duration: Long = -1,
     override val options: AudioItemOptions? = null,
-) : AudioItem {
-    override fun getSourceUrl(handler: (String) -> Unit) {
-        handler("")
-    }
-}
+) : AudioItem
 
 class AudioItemHolder(
     var audioItem: AudioItem
