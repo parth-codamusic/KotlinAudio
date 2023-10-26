@@ -58,6 +58,7 @@ abstract class BaseAudioPlayer internal constructor(
     private val bufferConfig: BufferConfig?,
     private val cacheConfig: CacheConfig?
 ) : AudioManager.OnAudioFocusChangeListener {
+
     protected val exoPlayer: ExoPlayer
     private val forwardingPlayer: ForwardingPlayer
     protected val mediaSession: MediaSession
@@ -143,6 +144,8 @@ abstract class BaseAudioPlayer internal constructor(
 
     val isPlaying
         get() = exoPlayer.isPlaying
+
+    private var updatePlaybackDelay: Long = 500
 
     private val notificationEventHolder = NotificationEventHolder()
     private val playerEventHolder = PlayerEventHolder()
@@ -562,7 +565,7 @@ abstract class BaseAudioPlayer internal constructor(
         coroutineScope?.launch {
             while (true) {
                 // Update your UI with currentPosition here.
-                delay(1000) // Update every 1 second
+                delay(updatePlaybackDelay.toLong()) // Update every 1 second
                 _updatePlayback.emit(0)
             }
         }
@@ -570,6 +573,9 @@ abstract class BaseAudioPlayer internal constructor(
 
     companion object {
         const val APPLICATION_NAME = "react-native-track-player"
+    }
+    fun setUpdatePlaybackDelay(delay: Long) {
+        updatePlaybackDelay = delay
     }
 
     inner class PlayerListener : Listener {
