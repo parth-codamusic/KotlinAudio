@@ -20,7 +20,7 @@ import kotlin.collections.ArrayList
 import kotlin.math.max
 import kotlin.math.min
 
-class QueuedAudioPlayer(
+open class QueuedAudioPlayer(
     context: Context,
     playerConfig: PlayerConfig = PlayerConfig(),
     bufferConfig: BufferConfig? = null,
