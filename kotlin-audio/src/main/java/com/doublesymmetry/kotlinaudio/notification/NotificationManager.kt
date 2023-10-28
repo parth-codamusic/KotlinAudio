@@ -13,7 +13,7 @@ import com.doublesymmetry.kotlinaudio.models.*
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 
-class NotificationManager internal constructor(
+class NotificationManager constructor(
     private val context: Context,
     private val player: Player,
     private val mediaSession: MediaSession,
@@ -232,7 +232,7 @@ class NotificationManager internal constructor(
         }
     }
 
-    internal fun destroy() = scope.launch {
+    fun destroy() = scope.launch {
         descriptionAdapter.release()
         internalNotificationManager?.setPlayer(null)
     }

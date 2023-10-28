@@ -1,18 +1,13 @@
 package com.doublesymmetry.kotlinaudio.players
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.drawable.BitmapDrawable
-import android.media.MediaMetadata.METADATA_KEY_ARTIST
-import android.media.MediaMetadata.METADATA_KEY_TITLE
-import android.os.Bundle
+import android.net.Uri
+import android.util.Log
 import androidx.media3.common.C
 import androidx.media3.common.IllegalSeekPositionException
+import androidx.media3.common.MediaItem
+import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.MediaSource
-import androidx.media3.session.MediaSession
-import coil.imageLoader
-import coil.request.Disposable
-import coil.request.ImageRequest
 import com.doublesymmetry.kotlinaudio.models.*
 
 import java.util.*
@@ -20,12 +15,18 @@ import kotlin.collections.ArrayList
 import kotlin.math.max
 import kotlin.math.min
 
-open class QueuedAudioPlayer(
+abstract class QueuedAudioPlayer(
     context: Context,
     playerConfig: PlayerConfig = PlayerConfig(),
     bufferConfig: BufferConfig? = null,
     cacheConfig: CacheConfig? = null
-) : BaseAudioPlayer(context, playerConfig, bufferConfig, cacheConfig) {
+) : BaseAudioPlayer(
+    context,
+    playerConfig,
+    bufferConfig,
+    cacheConfig
+) {
+
     private val queue = LinkedList<MediaSource>()
     override val playerOptions = DefaultQueuedPlayerOptions(exoPlayer)
 
@@ -86,14 +87,15 @@ open class QueuedAudioPlayer(
         if (queue.isEmpty()) {
             add(item)
         } else {
-            getMediaSourceFromAudioItem(item) {
-                queue[currentIndex] = it
-                exoPlayer.addMediaSource(currentIndex + 1, it)
-            }
+            exoPlayer.addMediaSource(currentIndex + 1, getMediaSourceFromAudioItem(item))
             exoPlayer.removeMediaItem(currentIndex)
-            exoPlayer.prepare()
+            prepareExoPlayer(exoPlayer)
         }
     }
+
+    abstract fun prepareExoPlayer(
+        exoPlayer: ExoPlayer
+    )
 
     /**
      * Add a single item to the queue. If the AudioPlayer has no item loaded, it will load the `item`.
@@ -110,11 +112,12 @@ open class QueuedAudioPlayer(
      * @param playWhenReady Whether playback starts automatically.
      */
     fun add(item: AudioItem) {
-        getMediaSourceFromAudioItem(item) {
-            queue.add(it)
-            exoPlayer.addMediaSource(it)
+        exoPlayer.addMediaSource(currentIndex + 1, getMediaSourceFromAudioItem(item))
+        if (queue.isEmpty()) {
+            prepareExoPlayer(exoPlayer)
         }
-        exoPlayer.prepare()
+
+        queue.add(getMediaSourceFromAudioItem(item))
     }
 
     /**
@@ -135,13 +138,11 @@ open class QueuedAudioPlayer(
         val mediaSources = ArrayList<MediaSource>()
 
         items.map {
-            getMediaSourceFromAudioItem(it) { mediaSource ->
-                mediaSources.add(mediaSource)
-            }
+            mediaSources.add(getMediaSourceFromAudioItem(it))
         }
         queue.addAll(mediaSources)
         exoPlayer.addMediaSources(mediaSources)
-        exoPlayer.prepare()
+        prepareExoPlayer(exoPlayer)
     }
 
 
@@ -153,13 +154,27 @@ open class QueuedAudioPlayer(
     fun add(items: List<AudioItem>, atIndex: Int) {
         val mediaSources = ArrayList<MediaSource>()
         items.map {
-            getMediaSourceFromAudioItem(it) { mediaSource ->
-                mediaSources.add(mediaSource)
-            }
+            mediaSources.add(getMediaSourceFromAudioItem(it))
         }
         queue.addAll(atIndex, mediaSources)
         exoPlayer.addMediaSources(atIndex, mediaSources)
-        exoPlayer.prepare()
+        prepareExoPlayer(exoPlayer)
+    }
+
+    fun exoplayerPrepare(audioUrl: Uri) {
+        val playingUrl =
+            exoPlayer?.currentMediaItem?.localConfiguration?.uri
+        Log.e("TAG", "--------AUDIO URL-------- $audioUrl  ")
+        Log.e("TAG", "--------PLAYING URL--------    $playingUrl")
+        if (playingUrl == audioUrl) {
+            Log.e("TAG", "--------RETURN--------")
+            return
+        }
+        Log.e("TAG", "-------SETTING MEDIA ITEM--------    $audioUrl")
+        (exoPlayer?.currentMediaItem?.localConfiguration?.tag as AudioItemHolder?)?.audioItem?.audioUrl =
+            audioUrl.toString()
+        exoPlayer.setMediaItem(MediaItem.fromUri(audioUrl))
+//        exoPlayer.prepare()
     }
 
     /**
@@ -191,7 +206,7 @@ open class QueuedAudioPlayer(
      */
     fun next() {
         exoPlayer.seekToNextMediaItem()
-        exoPlayer.prepare()
+        prepareExoPlayer(exoPlayer)
     }
 
     /**
@@ -200,7 +215,7 @@ open class QueuedAudioPlayer(
      */
     fun previous() {
         exoPlayer.seekToPreviousMediaItem()
-        exoPlayer.prepare()
+        prepareExoPlayer(exoPlayer)
     }
 
     /**
@@ -243,10 +258,8 @@ open class QueuedAudioPlayer(
      * If updating current index, we update the notification metadata if [automaticallyUpdateNotificationMetadata] is true.
      */
     fun replaceItem(index: Int, item: AudioItem) {
-        getMediaSourceFromAudioItem(item) {
-            queue[index] = it
-        }
-
+        val mediaSource = getMediaSourceFromAudioItem(item)
+        queue[index] = mediaSource
 
         if (currentIndex == index && automaticallyUpdateNotificationMetadata)
             notificationManager.notificationMetadata =

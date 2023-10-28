@@ -56,55 +56,55 @@ class PlayerEventHolder {
     */
     var onPlayerActionTriggeredExternally = _onPlayerActionTriggeredExternally.asSharedFlow()
 
-    internal fun updateAudioPlayerState(state: AudioPlayerState) {
+    fun updateAudioPlayerState(state: AudioPlayerState) {
         coroutineScope.launch {
             _stateChange.emit(state)
         }
     }
 
-    internal fun updatePlaybackEndedReason(reason: PlaybackEndedReason) {
+    fun updatePlaybackEndedReason(reason: PlaybackEndedReason) {
         coroutineScope.launch {
             _playbackEnd.emit(reason)
         }
     }
 
-    internal fun updatePlayWhenReadyChange(playWhenReadyChange: PlayWhenReadyChangeData) {
+    fun updatePlayWhenReadyChange(playWhenReadyChange: PlayWhenReadyChangeData) {
         coroutineScope.launch {
             _playWhenReadyChange.emit(playWhenReadyChange)
         }
     }
 
-    internal fun updateAudioItemTransition(reason: AudioItemTransitionReason) {
+    fun updateAudioItemTransition(reason: AudioItemTransitionReason) {
         coroutineScope.launch {
             _audioItemTransition.emit(reason)
         }
     }
 
-    internal fun updatePositionChangedReason(reason: PositionChangedReason) {
+    fun updatePositionChangedReason(reason: PositionChangedReason) {
         coroutineScope.launch {
             _positionChanged.emit(reason)
         }
     }
 
-    internal fun updateOnAudioFocusChanged(isPaused: Boolean, isPermanent: Boolean) {
+    fun updateOnAudioFocusChanged(isPaused: Boolean, isPermanent: Boolean) {
         coroutineScope.launch {
             _onAudioFocusChanged.emit(FocusChangeData(isPaused, isPermanent))
         }
     }
 
-    internal fun updateOnPlaybackMetadata(metadata: PlaybackMetadata) {
+    fun updateOnPlaybackMetadata(metadata: PlaybackMetadata) {
         coroutineScope.launch {
             _onPlaybackMetadata.emit(metadata)
         }
     }
 
-    internal fun updatePlaybackError(error: PlaybackError) {
+    fun updatePlaybackError(error: PlaybackError) {
         coroutineScope.launch {
             _playbackError.emit(error)
         }
     }
 
-    internal fun updateOnPlayerActionTriggeredExternally(callback: MediaSessionCallback) {
+    fun updateOnPlayerActionTriggeredExternally(callback: MediaSessionCallback) {
         coroutineScope.launch {
             _onPlayerActionTriggeredExternally.emit(callback)
         }

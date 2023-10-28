@@ -12,7 +12,7 @@ class NotificationEventHolder {
     private var _notificationStateChange = MutableSharedFlow<NotificationState>(1)
     var notificationStateChange = _notificationStateChange.asSharedFlow()
 
-    internal fun updateNotificationState(state: NotificationState) {
+    fun updateNotificationState(state: NotificationState) {
         coroutineScope.launch {
             _notificationStateChange.emit(state)
         }

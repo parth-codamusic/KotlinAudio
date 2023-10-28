@@ -2,6 +2,7 @@ package com.doublesymmetry.kotlin_audio_sample
 
 import android.annotation.SuppressLint
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -41,15 +42,37 @@ class FirstFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        player = QueuedAudioPlayer(requireActivity(), playerConfig = PlayerConfig(
-            interceptPlayerActionsTriggeredExternally = true,
-            handleAudioBecomingNoisy = true,
-            handleAudioFocus = true
-        ))
+        player = CodaAudioPlayer(
+            requireActivity(), playerConfig = PlayerConfig(
+                interceptPlayerActionsTriggeredExternally = true,
+                handleAudioBecomingNoisy = true,
+                handleAudioFocus = true
+            )
+        )
         player.add(firstItem)
         player.add(secondItem)
-        player.playerOptions.repeatMode = RepeatMode.ALL
+        player.add(firstItem)
+        player.add(secondItem)
+        player.add(firstItem)
+        player.add(secondItem)
+        player.add(firstItem)
+        player.add(secondItem)
+        player.add(firstItem)
+        player.add(secondItem)
+        player.add(firstItem)
+        player.add(secondItem)
+        player.add(firstItem)
+        player.add(secondItem)
+        player.playerOptions.repeatMode = RepeatMode.OFF
         player.play()
+        player.setUpdatePlaybackDelay(5000)
+        var i = 0;
+        lifecycleScope.launch {
+            player.updatePlayback.collect {
+                Log.e("TICKER", "$i")
+                i++
+            }
+        }
 
         binding.buttonNext.setOnClickListener {
             player.next()
@@ -84,7 +107,8 @@ class FirstFragment : Fragment() {
             SeekDirection.Forward -> player.position + 1000
             SeekDirection.Backward -> player.position - 1000L
         }
-
+        player.add(firstItem)
+        player.add(secondItem)
         player.seek(seekTime, TimeUnit.MILLISECONDS)
     }
 
@@ -111,7 +135,8 @@ class FirstFragment : Fragment() {
                     player.event.audioItemTransition.collect {
                         binding.textviewTitle.text = player.currentItem?.title
                         binding.textviewArtist.text = player.currentItem?.artist
-                        binding.textviewQueue.text = "${player.currentIndex + 1} / ${player.items.size}"
+                        binding.textviewQueue.text =
+                            "${player.currentIndex + 1} / ${player.items.size}"
                     }
                 }
 
@@ -126,7 +151,10 @@ class FirstFragment : Fragment() {
                             MediaSessionCallback.STOP -> player.stop()
                             MediaSessionCallback.FORWARD -> seek(SeekDirection.Forward)
                             MediaSessionCallback.REWIND -> seek(SeekDirection.Backward)
-                            is MediaSessionCallback.SEEK -> player.seek(it.positionMs, TimeUnit.MILLISECONDS)
+                            is MediaSessionCallback.SEEK -> player.seek(
+                                it.positionMs,
+                                TimeUnit.MILLISECONDS
+                            )
                             else -> Timber.d("Event not handled")
                         }
                     }
@@ -155,7 +183,8 @@ class FirstFragment : Fragment() {
 
     companion object {
         val firstItem = DefaultAudioItem(
-            "https://cdn.pixabay.com/download/audio/2022/08/31/audio_419263fc12.mp3?filename=leonell-cassio-the-blackest-bouquet-118766.mp3", MediaType.DEFAULT,
+            "https://cdn.pixabay.com/download/audio/2022/08/31/audio_419263fc12.mp3?filename=leonell-cassio-the-blackest-bouquet-118766.mp3",
+            MediaType.DEFAULT,
             title = "Song 1",
             artwork = "https://upload.wikimedia.org/wikipedia/en/0/0b/DirtyComputer.png",
             artist = "Artist 1",
@@ -163,7 +192,8 @@ class FirstFragment : Fragment() {
         )
 
         val secondItem = DefaultAudioItem(
-            "https://cdn.pixabay.com/download/audio/2022/08/25/audio_4f3b0a816e.mp3?filename=tuesday-glitch-soft-hip-hop-118327.mp3", MediaType.DEFAULT,
+            "https://cdn.pixabay.com/download/audio/2022/08/25/audio_4f3b0a816e.mp3?filename=tuesday-glitch-soft-hip-hop-118327.mp3",
+            MediaType.DEFAULT,
             title = "Song 2",
             artwork = "https://images-na.ssl-images-amazon.com/images/I/A18QUHExFgL._SL1500_.jpg",
             artist = "Artist 2",
