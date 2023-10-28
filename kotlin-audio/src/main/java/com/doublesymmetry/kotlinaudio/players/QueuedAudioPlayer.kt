@@ -16,10 +16,16 @@ import coil.request.ImageRequest
 import com.doublesymmetry.kotlinaudio.models.*
 
 import java.util.*
+import kotlin.collections.ArrayList
 import kotlin.math.max
 import kotlin.math.min
 
-class QueuedAudioPlayer(context: Context, playerConfig: PlayerConfig = PlayerConfig(), bufferConfig: BufferConfig? = null, cacheConfig: CacheConfig? = null) : BaseAudioPlayer(context, playerConfig, bufferConfig, cacheConfig) {
+open class QueuedAudioPlayer(
+    context: Context,
+    playerConfig: PlayerConfig = PlayerConfig(),
+    bufferConfig: BufferConfig? = null,
+    cacheConfig: CacheConfig? = null
+) : BaseAudioPlayer(context, playerConfig, bufferConfig, cacheConfig) {
     private val queue = LinkedList<MediaSource>()
     override val playerOptions = DefaultQueuedPlayerOptions(exoPlayer)
 
@@ -80,9 +86,10 @@ class QueuedAudioPlayer(context: Context, playerConfig: PlayerConfig = PlayerCon
         if (queue.isEmpty()) {
             add(item)
         } else {
-            val mediaSource = getMediaSourceFromAudioItem(item)
-            queue[currentIndex] = mediaSource
-            exoPlayer.addMediaSource(currentIndex + 1, mediaSource)
+            getMediaSourceFromAudioItem(item) {
+                queue[currentIndex] = it
+                exoPlayer.addMediaSource(currentIndex + 1, it)
+            }
             exoPlayer.removeMediaItem(currentIndex)
             exoPlayer.prepare()
         }
@@ -103,9 +110,10 @@ class QueuedAudioPlayer(context: Context, playerConfig: PlayerConfig = PlayerCon
      * @param playWhenReady Whether playback starts automatically.
      */
     fun add(item: AudioItem) {
-        val mediaSource = getMediaSourceFromAudioItem(item)
-        queue.add(mediaSource)
-        exoPlayer.addMediaSource(mediaSource)
+        getMediaSourceFromAudioItem(item) {
+            queue.add(it)
+            exoPlayer.addMediaSource(it)
+        }
         exoPlayer.prepare()
     }
 
@@ -124,7 +132,13 @@ class QueuedAudioPlayer(context: Context, playerConfig: PlayerConfig = PlayerCon
      * @param items The [AudioItem]s to add.
      */
     fun add(items: List<AudioItem>) {
-        val mediaSources = items.map { getMediaSourceFromAudioItem(it) }
+        val mediaSources = ArrayList<MediaSource>()
+
+        items.map {
+            getMediaSourceFromAudioItem(it) { mediaSource ->
+                mediaSources.add(mediaSource)
+            }
+        }
         queue.addAll(mediaSources)
         exoPlayer.addMediaSources(mediaSources)
         exoPlayer.prepare()
@@ -137,7 +151,12 @@ class QueuedAudioPlayer(context: Context, playerConfig: PlayerConfig = PlayerCon
      * @param atIndex  Index to insert items at, if no items loaded this will not automatically start playback.
      */
     fun add(items: List<AudioItem>, atIndex: Int) {
-        val mediaSources = items.map { getMediaSourceFromAudioItem(it) }
+        val mediaSources = ArrayList<MediaSource>()
+        items.map {
+            getMediaSourceFromAudioItem(it) { mediaSource ->
+                mediaSources.add(mediaSource)
+            }
+        }
         queue.addAll(atIndex, mediaSources)
         exoPlayer.addMediaSources(atIndex, mediaSources)
         exoPlayer.prepare()
@@ -224,11 +243,14 @@ class QueuedAudioPlayer(context: Context, playerConfig: PlayerConfig = PlayerCon
      * If updating current index, we update the notification metadata if [automaticallyUpdateNotificationMetadata] is true.
      */
     fun replaceItem(index: Int, item: AudioItem) {
-        val mediaSource = getMediaSourceFromAudioItem(item)
-        queue[index] = mediaSource
+        getMediaSourceFromAudioItem(item) {
+            queue[index] = it
+        }
+
 
         if (currentIndex == index && automaticallyUpdateNotificationMetadata)
-            notificationManager.notificationMetadata = NotificationMetadata(item.title, item.artist, item.artwork)
+            notificationManager.notificationMetadata =
+                NotificationMetadata(item.title, item.artist, item.artwork)
     }
 
     /**

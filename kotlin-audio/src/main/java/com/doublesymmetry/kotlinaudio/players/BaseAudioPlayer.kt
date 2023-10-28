@@ -58,6 +58,7 @@ abstract class BaseAudioPlayer internal constructor(
     private val bufferConfig: BufferConfig?,
     private val cacheConfig: CacheConfig?
 ) : AudioManager.OnAudioFocusChangeListener {
+
     protected val exoPlayer: ExoPlayer
     private val forwardingPlayer: ForwardingPlayer
     protected val mediaSession: MediaSession
@@ -143,6 +144,8 @@ abstract class BaseAudioPlayer internal constructor(
 
     val isPlaying
         get() = exoPlayer.isPlaying
+
+    private var updatePlaybackDelay: Long = 500
 
     private val notificationEventHolder = NotificationEventHolder()
     private val playerEventHolder = PlayerEventHolder()
@@ -312,8 +315,9 @@ abstract class BaseAudioPlayer internal constructor(
      * @param item The [AudioItem] to replace the current one.
      */
     open fun load(item: AudioItem) {
-        val mediaSource = getMediaSourceFromAudioItem(item)
-        exoPlayer.addMediaSource(mediaSource)
+        getMediaSourceFromAudioItem(item) {
+            exoPlayer.addMediaSource(it)
+        }
         exoPlayer.prepare()
     }
 
@@ -364,7 +368,7 @@ abstract class BaseAudioPlayer internal constructor(
      * Pause playback whenever an item plays to its end.
      */
     fun setPauseAtEndOfItem(pause: Boolean) {
-        exoPlayer.setPauseAtEndOfMediaItems(pause)
+        exoPlayer.pauseAtEndOfMediaItems = pause
     }
 
     /**
@@ -397,46 +401,55 @@ abstract class BaseAudioPlayer internal constructor(
             .build()
     }
 
-    protected fun getMediaSourceFromAudioItem(audioItem: AudioItem): MediaSource {
-        val factory: DataSource.Factory
-        val uri = Uri.parse(audioItem.audioUrl)
-        val mediaItem = getMediaItemFromAudioItem(audioItem)
+    protected fun getMediaSourceFromAudioItem(
+        audioItem: AudioItem,
+        handler: (MediaSource) -> Unit
+    ) {
+        audioItem.getSourceUrl { it ->
+            val uri = Uri.parse(it)
+            val mediaItem = MediaItem.Builder()
+                .setUri(it)
+                .setTag(AudioItemHolder(audioItem))
+                .build()
 
-        val userAgent =
-            if (audioItem.options == null || audioItem.options!!.userAgent.isNullOrBlank()) {
-                Util.getUserAgent(context, APPLICATION_NAME)
-            } else {
-                audioItem.options!!.userAgent
-            }
-
-        factory = when {
-            audioItem.options?.resourceId != null -> {
-                val raw = RawResourceDataSource(context)
-                raw.open(DataSpec(uri))
-                DataSource.Factory { raw }
-            }
-            isUriLocal(uri) -> {
-                DefaultDataSourceFactory(context, userAgent)
-            }
-            else -> {
-                val tempFactory = DefaultHttpDataSource.Factory().apply {
-                    setUserAgent(userAgent)
-                    setAllowCrossProtocolRedirects(true)
-
-                    audioItem.options?.headers?.let {
-                        setDefaultRequestProperties(it.toMap())
-                    }
+            val userAgent =
+                if (audioItem.options == null || audioItem.options!!.userAgent.isNullOrBlank()) {
+                    Util.getUserAgent(context, APPLICATION_NAME)
+                } else {
+                    audioItem.options!!.userAgent
                 }
 
-                enableCaching(tempFactory)
-            }
-        }
+            val factory: DataSource.Factory = when {
+                audioItem.options?.resourceId != null -> {
+                    val raw = RawResourceDataSource(context)
+                    raw.open(DataSpec(uri))
+                    DataSource.Factory { raw }
+                }
+                isUriLocal(uri) -> {
+                    DefaultDataSourceFactory(context, userAgent)
+                }
+                else -> {
+                    val tempFactory = DefaultHttpDataSource.Factory().apply {
+                        setUserAgent(userAgent)
+                        setAllowCrossProtocolRedirects(true)
 
-        return when (audioItem.type) {
-            MediaType.DASH -> createDashSource(mediaItem, factory)
-            MediaType.HLS -> createHlsSource(mediaItem, factory)
-            MediaType.SMOOTH_STREAMING -> createSsSource(mediaItem, factory)
-            else -> createProgressiveSource(mediaItem, factory)
+                        audioItem.options?.headers?.let {
+                            setDefaultRequestProperties(it.toMap())
+                        }
+                    }
+
+                    enableCaching(tempFactory)
+                }
+            }
+
+            handler(
+                when (audioItem.type) {
+                    MediaType.DASH -> createDashSource(mediaItem, factory)
+                    MediaType.HLS -> createHlsSource(mediaItem, factory)
+                    MediaType.SMOOTH_STREAMING -> createSsSource(mediaItem, factory)
+                    else -> createProgressiveSource(mediaItem, factory)
+                }
+            )
         }
     }
 
@@ -552,7 +565,7 @@ abstract class BaseAudioPlayer internal constructor(
         coroutineScope?.launch {
             while (true) {
                 // Update your UI with currentPosition here.
-                delay(1000) // Update every 1 second
+                delay(updatePlaybackDelay.toLong()) // Update every 1 second
                 _updatePlayback.emit(0)
             }
         }
@@ -560,6 +573,9 @@ abstract class BaseAudioPlayer internal constructor(
 
     companion object {
         const val APPLICATION_NAME = "react-native-track-player"
+    }
+    fun setUpdatePlaybackDelay(delay: Long) {
+        updatePlaybackDelay = delay
     }
 
     inner class PlayerListener : Listener {
