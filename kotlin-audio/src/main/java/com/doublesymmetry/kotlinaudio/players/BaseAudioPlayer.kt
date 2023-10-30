@@ -45,8 +45,9 @@ import com.doublesymmetry.kotlinaudio.models.*
 import com.doublesymmetry.kotlinaudio.notification.NotificationManager
 import com.doublesymmetry.kotlinaudio.players.components.PlayerCache
 import com.doublesymmetry.kotlinaudio.utils.isUriLocal
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import timber.log.Timber
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -72,6 +73,12 @@ abstract class BaseAudioPlayer internal constructor(
 
     open val currentItem: AudioItem?
         get() = exoPlayer.currentMediaItem?.localConfiguration?.tag as AudioItem?
+
+    private val _updatePlayback = MutableSharedFlow<Int>()
+    val updatePlayback: SharedFlow<Int>
+        get() = _updatePlayback
+
+    private var updatePlaybackDelay: Long = 500
 
     var playbackError: PlaybackError? = null
     var playerState: AudioPlayerState = AudioPlayerState.IDLE
@@ -182,6 +189,25 @@ abstract class BaseAudioPlayer internal constructor(
     private var focus: AudioFocusRequest? = null
     private var hasAudioFocus = false
     private var wasDucking = false
+
+
+    private var coroutineScope: CoroutineScope? = null
+    private fun updatePlaybackPosition() {
+        coroutineScope?.cancel()
+        coroutineScope = CoroutineScope(Dispatchers.Default)
+
+        coroutineScope?.launch {
+            while (true) {
+                // Update your UI with currentPosition here.
+                delay(updatePlaybackDelay.toLong()) // Update every 1 second
+                _updatePlayback.emit(0)
+            }
+        }
+    }
+
+    fun setUpdatePlaybackDelay(delay: Long) {
+        updatePlaybackDelay = delay
+    }
 
     init {
         if (cacheConfig != null) {
@@ -325,6 +351,7 @@ abstract class BaseAudioPlayer internal constructor(
         if (currentItem != null) {
             exoPlayer.prepare()
         }
+        updatePlaybackPosition()
     }
 
     fun prepare() {
