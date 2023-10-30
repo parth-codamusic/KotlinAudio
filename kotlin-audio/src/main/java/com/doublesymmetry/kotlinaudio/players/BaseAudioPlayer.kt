@@ -57,9 +57,9 @@ abstract class BaseAudioPlayer constructor(
     internal val context: Context,
     playerConfig: PlayerConfig,
     private val bufferConfig: BufferConfig?,
-    private val cacheConfig: CacheConfig?
+    private val cacheConfig: CacheConfig?,
+    private val exoPlayer: ExoPlayer,
 ) : AudioManager.OnAudioFocusChangeListener {
-    protected val exoPlayer: ExoPlayer
     private val forwardingPlayer: ForwardingPlayer
     protected val mediaSession: MediaSession
 
@@ -192,17 +192,16 @@ abstract class BaseAudioPlayer constructor(
     private var hasAudioFocus = false
     private var wasDucking = false
 
+
+    init {
+
+    }
+
     init {
         if (cacheConfig != null) {
             cache = PlayerCache.getInstance(context, cacheConfig)
         }
 
-        exoPlayer = ExoPlayer.Builder(context)
-            .setHandleAudioBecomingNoisy(playerConfig.handleAudioBecomingNoisy)
-            .apply {
-                if (bufferConfig != null) setLoadControl(setupBuffer(bufferConfig))
-            }
-            .build()
 
         forwardingPlayer = createForwardingPlayer()
         mediaSession = MediaSession.Builder(context, exoPlayer).build()
@@ -252,6 +251,7 @@ abstract class BaseAudioPlayer constructor(
             }
 
             override fun seekToNext() {
+                Log.e("NEXT", "NEXT")
                 playerEventHolder.updateOnPlayerActionTriggeredExternally(MediaSessionCallback.NEXT)
             }
 
@@ -307,6 +307,7 @@ abstract class BaseAudioPlayer constructor(
      * @param playWhenReady Whether playback starts automatically.
      */
     open fun load(item: AudioItem, playWhenReady: Boolean = true) {
+        Log.e("TAG", "LOAD @")
         exoPlayer.playWhenReady = playWhenReady
         load(item)
     }
@@ -316,6 +317,7 @@ abstract class BaseAudioPlayer constructor(
      * @param item The [AudioItem] to replace the current one.
      */
     open fun load(item: AudioItem) {
+        Log.e("TAG", "LOAD @")
         val mediaSource = getMediaSourceFromAudioItem(item)
         exoPlayer.addMediaSource(mediaSource)
         exoPlayer.prepare()
@@ -401,49 +403,7 @@ abstract class BaseAudioPlayer constructor(
             .build()
     }
 
-    protected fun getMediaSourceFromAudioItem(audioItem: AudioItem): MediaSource {
-        Log.e("TAG", "GETMEDIA SOURCE")
-        val factory: androidx.media3.datasource.DataSource.Factory
-        val uri = Uri.parse(audioItem.audioUrl)
-        val mediaItem = getMediaItemFromAudioItem(audioItem)
-
-        val userAgent =
-            if (audioItem.options == null || audioItem.options!!.userAgent.isNullOrBlank()) {
-                Util.getUserAgent(context, APPLICATION_NAME)
-            } else {
-                audioItem.options!!.userAgent
-            }
-
-        factory = when {
-            audioItem.options?.resourceId != null -> {
-                val raw = RawResourceDataSource(context)
-                raw.open(DataSpec(uri))
-                androidx.media3.datasource.DataSource.Factory { raw }
-            }
-            isUriLocal(uri) -> {
-                DefaultDataSourceFactory(context, userAgent)
-            }
-            else -> {
-                val tempFactory = DefaultHttpDataSource.Factory().apply {
-                    setUserAgent(userAgent)
-                    setAllowCrossProtocolRedirects(true)
-
-                    audioItem.options?.headers?.let {
-                        setDefaultRequestProperties(it.toMap())
-                    }
-                }
-
-                enableCaching(tempFactory)
-            }
-        }
-
-        return when (audioItem.type) {
-            MediaType.DASH -> createDashSource(mediaItem, factory)
-            MediaType.HLS -> createHlsSource(mediaItem, factory)
-            MediaType.SMOOTH_STREAMING -> createSsSource(mediaItem, factory)
-            else -> createProgressiveSource(mediaItem, factory)
-        }
-    }
+    protected abstract fun getMediaSourceFromAudioItem(audioItem: AudioItem): MediaSource
 
 
     protected fun createDashSource(
