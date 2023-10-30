@@ -52,7 +52,7 @@ import timber.log.Timber
 import java.util.*
 import java.util.concurrent.TimeUnit
 
-abstract class BaseAudioPlayer internal constructor(
+abstract class BaseAudioPlayer constructor(
     internal val context: Context,
     playerConfig: PlayerConfig,
     private val bufferConfig: BufferConfig?,
