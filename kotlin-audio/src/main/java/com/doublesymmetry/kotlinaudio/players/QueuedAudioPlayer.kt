@@ -19,7 +19,7 @@ import java.util.*
 import kotlin.math.max
 import kotlin.math.min
 
-class QueuedAudioPlayer(context: Context, playerConfig: PlayerConfig = PlayerConfig(), bufferConfig: BufferConfig? = null, cacheConfig: CacheConfig? = null) : BaseAudioPlayer(context, playerConfig, bufferConfig, cacheConfig) {
+abstract class QueuedAudioPlayer(context: Context, playerConfig: PlayerConfig = PlayerConfig(), bufferConfig: BufferConfig? = null, cacheConfig: CacheConfig? = null) : BaseAudioPlayer(context, playerConfig, bufferConfig, cacheConfig) {
     private val queue = LinkedList<MediaSource>()
     override val playerOptions = DefaultQueuedPlayerOptions(exoPlayer)
 
