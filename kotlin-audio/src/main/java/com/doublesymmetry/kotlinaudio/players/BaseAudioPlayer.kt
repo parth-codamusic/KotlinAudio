@@ -417,22 +417,22 @@ abstract class BaseAudioPlayer internal constructor(
 
     protected abstract fun getMediaSourceFromAudioItem(audioItem: AudioItem): MediaSource
 
-    private fun createDashSource(mediaItem: MediaItem, factory: DataSource.Factory?): MediaSource {
+     fun createDashSource(mediaItem: MediaItem, factory: DataSource.Factory?): MediaSource {
         return DashMediaSource.Factory(DefaultDashChunkSource.Factory(factory!!), factory)
             .createMediaSource(mediaItem)
     }
 
-    private fun createHlsSource(mediaItem: MediaItem, factory: DataSource.Factory?): MediaSource {
+     fun createHlsSource(mediaItem: MediaItem, factory: DataSource.Factory?): MediaSource {
         return HlsMediaSource.Factory(factory!!)
             .createMediaSource(mediaItem)
     }
 
-    private fun createSsSource(mediaItem: MediaItem, factory: DataSource.Factory?): MediaSource {
+     fun createSsSource(mediaItem: MediaItem, factory: DataSource.Factory?): MediaSource {
         return SsMediaSource.Factory(DefaultSsChunkSource.Factory(factory!!), factory)
             .createMediaSource(mediaItem)
     }
 
-    private fun createProgressiveSource(
+     fun createProgressiveSource(
         mediaItem: MediaItem,
         factory: DataSource.Factory
     ): ProgressiveMediaSource {
@@ -443,7 +443,7 @@ abstract class BaseAudioPlayer internal constructor(
             .createMediaSource(mediaItem)
     }
 
-    private fun enableCaching(factory: DataSource.Factory): DataSource.Factory {
+     fun enableCaching(factory: DataSource.Factory): DataSource.Factory {
         return if (cache == null || cacheConfig == null || (cacheConfig.maxCacheSize ?: 0) <= 0) {
             factory
         } else {
