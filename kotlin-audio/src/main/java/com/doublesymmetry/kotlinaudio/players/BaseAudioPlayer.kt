@@ -410,6 +410,7 @@ abstract class BaseAudioPlayer internal constructor(
         exoPlayer.seekTo(positionMs)
     }
 
+
     private fun getMediaItemFromAudioItem(audioItem: AudioItem): MediaItem {
         return MediaItem.Builder().setUri(audioItem.audioUrl).setTag(AudioItemHolder(audioItem))
             .build()
