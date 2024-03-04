@@ -5,6 +5,8 @@ import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.AudioManager.AUDIOFOCUS_LOSS
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import androidx.annotation.CallSuper
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -52,7 +54,7 @@ import timber.log.Timber
 import java.util.*
 import java.util.concurrent.TimeUnit
 
-abstract class BaseAudioPlayer internal constructor(
+abstract class BaseAudioPlayer constructor(
     internal val context: Context,
     playerConfig: PlayerConfig,
     private val bufferConfig: BufferConfig?,
@@ -90,6 +92,7 @@ abstract class BaseAudioPlayer internal constructor(
                     when (value) {
                         AudioPlayerState.IDLE,
                         AudioPlayerState.ERROR -> abandonAudioFocusIfHeld()
+
                         AudioPlayerState.READY -> requestAudioFocus()
                         else -> {}
                     }
@@ -192,16 +195,19 @@ abstract class BaseAudioPlayer internal constructor(
 
 
     private var coroutineScope: CoroutineScope? = null
+
+    // Somewhere in your code where you want to start updating the playback periodically:
+    val handler = Handler(Looper.getMainLooper())
+
     private fun updatePlaybackPosition() {
+        handler.postDelayed(updatePlaybackRunnable, updatePlaybackDelay)
+    }
+
+    private val updatePlaybackRunnable = Runnable { // Update your UI with currentPosition here.
         coroutineScope?.cancel()
         coroutineScope = CoroutineScope(Dispatchers.Default)
-
         coroutineScope?.launch {
-            while (true) {
-                // Update your UI with currentPosition here.
-                delay(updatePlaybackDelay.toLong()) // Update every 1 second
-                _updatePlayback.emit(0)
-            }
+            _updatePlayback.emit(0)
         }
     }
 
@@ -417,25 +423,22 @@ abstract class BaseAudioPlayer internal constructor(
 
     protected abstract fun getMediaSourceFromAudioItem(audioItem: AudioItem): MediaSource
 
-    protected fun createDashSource(
-        mediaItem: MediaItem,
-        factory: DataSource.Factory?
-    ): MediaSource {
+    fun createDashSource(mediaItem: MediaItem, factory: DataSource.Factory?): MediaSource {
         return DashMediaSource.Factory(DefaultDashChunkSource.Factory(factory!!), factory)
             .createMediaSource(mediaItem)
     }
 
-    protected fun createHlsSource(mediaItem: MediaItem, factory: DataSource.Factory?): MediaSource {
+    fun createHlsSource(mediaItem: MediaItem, factory: DataSource.Factory?): MediaSource {
         return HlsMediaSource.Factory(factory!!)
             .createMediaSource(mediaItem)
     }
 
-    protected fun createSsSource(mediaItem: MediaItem, factory: DataSource.Factory?): MediaSource {
+    fun createSsSource(mediaItem: MediaItem, factory: DataSource.Factory?): MediaSource {
         return SsMediaSource.Factory(DefaultSsChunkSource.Factory(factory!!), factory)
             .createMediaSource(mediaItem)
     }
 
-    protected fun createProgressiveSource(
+    fun createProgressiveSource(
         mediaItem: MediaItem,
         factory: DataSource.Factory
     ): ProgressiveMediaSource {
@@ -446,7 +449,7 @@ abstract class BaseAudioPlayer internal constructor(
             .createMediaSource(mediaItem)
     }
 
-    protected fun enableCaching(factory: DataSource.Factory): DataSource.Factory {
+    fun enableCaching(factory: DataSource.Factory): DataSource.Factory {
         return if (cache == null || cacheConfig == null || (cacheConfig.maxCacheSize ?: 0) <= 0) {
             factory
         } else {
@@ -560,27 +563,32 @@ abstract class BaseAudioPlayer internal constructor(
                 Player.DISCONTINUITY_REASON_AUTO_TRANSITION -> playerEventHolder.updatePositionChangedReason(
                     PositionChangedReason.AUTO(oldPosition.positionMs, newPosition.positionMs)
                 )
+
                 Player.DISCONTINUITY_REASON_SEEK -> playerEventHolder.updatePositionChangedReason(
                     PositionChangedReason.SEEK(oldPosition.positionMs, newPosition.positionMs)
                 )
+
                 Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT -> playerEventHolder.updatePositionChangedReason(
                     PositionChangedReason.SEEK_FAILED(
                         oldPosition.positionMs,
                         newPosition.positionMs
                     )
                 )
+
                 Player.DISCONTINUITY_REASON_REMOVE -> playerEventHolder.updatePositionChangedReason(
                     PositionChangedReason.QUEUE_CHANGED(
                         oldPosition.positionMs,
                         newPosition.positionMs
                     )
                 )
+
                 Player.DISCONTINUITY_REASON_SKIP -> playerEventHolder.updatePositionChangedReason(
                     PositionChangedReason.SKIPPED_PERIOD(
                         oldPosition.positionMs,
                         newPosition.positionMs
                     )
                 )
+
                 Player.DISCONTINUITY_REASON_INTERNAL -> playerEventHolder.updatePositionChangedReason(
                     PositionChangedReason.UNKNOWN(oldPosition.positionMs, newPosition.positionMs)
                 )
@@ -597,12 +605,15 @@ abstract class BaseAudioPlayer internal constructor(
                 Player.MEDIA_ITEM_TRANSITION_REASON_AUTO -> playerEventHolder.updateAudioItemTransition(
                     AudioItemTransitionReason.AUTO(oldPosition)
                 )
+
                 Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED -> playerEventHolder.updateAudioItemTransition(
                     AudioItemTransitionReason.QUEUE_CHANGED(oldPosition)
                 )
+
                 Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT -> playerEventHolder.updateAudioItemTransition(
                     AudioItemTransitionReason.REPEAT(oldPosition)
                 )
+
                 Player.MEDIA_ITEM_TRANSITION_REASON_SEEK -> playerEventHolder.updateAudioItemTransition(
                     AudioItemTransitionReason.SEEK_TO_ANOTHER_AUDIO_ITEM(oldPosition)
                 )
@@ -654,6 +665,7 @@ abstract class BaseAudioPlayer internal constructor(
                                     null
                                 else
                                     AudioPlayerState.IDLE
+
                             Player.STATE_ENDED -> AudioPlayerState.ENDED
                             else -> null // noop
                         }
@@ -661,6 +673,7 @@ abstract class BaseAudioPlayer internal constructor(
                             playerState = state
                         }
                     }
+
                     Player.EVENT_MEDIA_ITEM_TRANSITION -> {
                         playbackError = null
                         if (currentItem != null) {
@@ -671,11 +684,13 @@ abstract class BaseAudioPlayer internal constructor(
                             }
                         }
                     }
+
                     Player.EVENT_PLAY_WHEN_READY_CHANGED -> {
                         if (!player.playWhenReady && playerState != AudioPlayerState.STOPPED) {
                             playerState = AudioPlayerState.PAUSED
                         }
                     }
+
                     Player.EVENT_IS_PLAYING_CHANGED -> {
                         if (player.isPlaying) {
                             playerState = AudioPlayerState.PLAYING
