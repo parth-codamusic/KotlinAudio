@@ -50,14 +50,14 @@ data class DefaultAudioItem(
      * Set to [MediaType.DEFAULT] by default.
      */
     override val type: MediaType = MediaType.DEFAULT,
+
     override var artist: String? = null,
     override var title: String? = null,
     override var albumTitle: String? = null,
     override val artwork: String? = null,
     override val duration: Long = -1,
     override val options: AudioItemOptions? = null,
-    override val track: String,
-    override val any: Any
+    override val track: String, override val any: Any
 ) : AudioItem
 
 class AudioItemHolder(
