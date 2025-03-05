@@ -23,11 +23,6 @@ abstract class QueuedAudioPlayer(context: Context, playerConfig: PlayerConfig = 
     private val queue = LinkedList<MediaSource>()
     override val playerOptions = DefaultQueuedPlayerOptions(exoPlayer)
 
-    init {
-//        mediaSessionConnector.setQueueNavigator(KotlinAudioQueueNavigator(mediaSession))
-//        mediaSessionConnector.setMetadataDeduplicationEnabled(true)
-    }
-
     val currentIndex
         get() = exoPlayer.currentMediaItemIndex
 
